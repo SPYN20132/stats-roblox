@@ -1,0 +1,24 @@
+name: Update Roblox Stats
+on:
+  schedule:
+    - cron: '*/45 * * * *' # Toutes les 45min
+  workflow_dispatch:
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Get Roblox Stats
+        run: |
+          curl -s "https://games.roblox.com/v1/games?universeIds=17625359962" > data.json
+          echo "Dernière MAJ : $(date +'%d/%m/%Y %H:%M')" > index.html
+          echo "<h1>PROJET ÉCHO - STATS LIVE</h1>" >> index.html
+          echo "<p>👥 Joueurs : $(jq '.data[0].playing' data.json)</p>" >> index.html
+          echo "<p>👁️ Visites : $(jq '.data[0].visits' data.json)</p>" >> index.html
+          echo "<p>⭐ Favoris : $(jq '.data[0].favoritedCount' data.json)</p>" >> index.html
+      - name: Deploy
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir:./
