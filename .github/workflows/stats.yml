@@ -1,4 +1,21 @@
-- name: Get RIVALS Stats
+name: Update RIVALS Stats
+on:
+  schedule:
+    - cron: '0 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Get RIVALS Stats
         run: |
           set -e
           UNIVERSE_ID=$(curl -s "https://apis.roproxy.com/universes/v1/places/17625359962/universe" | jq -r '.universeId')
@@ -10,58 +27,5 @@
           FAVS=$(jq -r '.data[0].favoritedCount // 0' data.json)
 
           mkdir -p _site
-          cat > _site/index.html << 'EOF'
-          <!DOCTYPE html>
-          <html>
-          <head>
-            <meta charset='UTF-8'>
-            <title>RIVALS Stats Live</title>
-            <style>
-              body { font-family:sans-serif; background:#0d1117; color:#fff; text-align:center; padding:50px; margin:0; }
-              h1 { font-size:3em; margin:20px 0; }
-              h2 { font-size:2.5em; margin:15px 0; color:#58a6ff; }
-             .stat { background:#161b22; border:1px solid #30363d; border-radius:10px; padding:20px; margin:20px auto; max-width:500px; }
-             .update { color:#8b949e; font-size:0.9em; }
-              #playing { color:#3fb950; }
-            </style>
-          </head>
-          <body>
-            <h1>🎮 RIVALS</h1>
-            <div class="stat">
-              <h2 id="playing">👥 Joueurs : LOADING...</h2>
-            </div>
-            <div class="stat">
-              <h2 id="visits">👁️ Visites : LOADING...</h2>
-            </div>
-            <div class="stat">
-              <h2 id="favs">⭐ Favoris : LOADING...</h2>
-            </div>
-            <p class="update">Dernière MAJ : <span id="time">...</span></p>
-            <p class="update">Auto-refresh toutes les 30s</p>
-
-            <script>
-              const UNIVERSE_ID = 'PLACEHOLDER_ID';
-
-              async function updateStats() {
-                try {
-                  const res = await fetch(`https://games.roproxy.com/v1/games?universeIds=${UNIVERSE_ID}`);
-                  const data = await res.json();
-                  const stats = data.data[0];
-
-                  document.getElementById('playing').innerText = `👥 Joueurs : ${stats.playing.toLocaleString()}`;
-                  document.getElementById('visits').innerText = `👁️ Visites : ${stats.visits.toLocaleString()}`;
-                  document.getElementById('favs').innerText = `⭐ Favoris : ${stats.favoritedCount.toLocaleString()}`;
-                  document.getElementById('time').innerText = new Date().toLocaleTimeString('fr-FR');
-                } catch(e) {
-                  console.log('Erreur:', e);
-                }
-              }
-
-              updateStats();
-              setInterval(updateStats, 30000); // Refresh toutes les 30s
-            </script>
-          </body>
-          </html>
-          EOF
-
-          sed -i "s/PLACEHOLDER_ID/$UNIVERSE_ID/g" _site/index.html
+          echo '<!DOCTYPE html>' > _site/index.html
+          echo '<html><head><meta charset="UTF-8"><title>RIVALS
