@@ -12,7 +12,7 @@ jobs:
       
       - name: Get Roblox Stats
         run: |
-          curl -s "https://games.roblox.com/v1/games?universeIds=17625359962" > data.json
+          curl -s "https://games.roblox.com/v1/games?universeIds=6035872082" > data.json
           echo "<html><head><meta charset='UTF-8'><meta http-equiv='refresh' content='300'><title>Stats Roblox</title></head><body style='font-family:sans-serif;background:#0d1117;color:#fff;text-align:center;padding:50px'>" > index.html
           echo "<h1>🎮 PROJET ÉCHO - STATS LIVE</h1>" >> index.html
           echo "<p>Dernière MAJ : $(date +'%d/%m/%Y %H:%M')</p>" >> index.html
