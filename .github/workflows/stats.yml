@@ -15,30 +15,29 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       
-      - name: Get RIVALS Stats + DEBUG
+      - name: Get RIVALS Stats
         run: |
           set -e
-          echo "=== TEST ID RIVALS 3623230945 ==="
-          curl -s "https://games.roblox.com/v1/games?universeIds=3623230945" > data.json
+          echo "=== RIVALS Universe ID = 3623230945 ==="
+          curl -s "https://games.roproxy.com/v1/games?universeIds=3623230945" > data.json
           cat data.json
-          echo ""
-          echo "=== NOM DU JEU ==="
-          jq -r '.data[0].name' data.json
-          echo "=== JOUEURS ==="
-          jq -r '.data[0].playing' data.json
           
           NAME=$(jq -r '.data[0].name' data.json)
           PLAYING=$(jq -r '.data[0].playing // 0' data.json)
           VISITS=$(jq -r '.data[0].visits // 0' data.json)
           FAVS=$(jq -r '.data[0].favoritedCount // 0' data.json)
           
-          if [ "$NAME"!= "RIVALS" ]; then
-            echo "ERREUR: Mauvais jeu détecté: $NAME"
-            exit 1
-          fi
+          echo "Jeu détecté: $NAME"
           
           mkdir -p _site
-          echo "<h1>$NAME</h1><h2>Joueurs: $PLAYING</h2><h2>Visites: $VISITS</h2><h2>Favoris: $FAVS</h2>" > _site/index.html
+          echo "<html><head><meta charset='UTF-8'><meta http-equiv='refresh' content='60'><title>RIVALS Stats</title></head>" > _site/index.html
+          echo "<body style='font-family:sans-serif;background:#0d1117;color:#fff;text-align:center;padding:50px'>" >> _site/index.html
+          echo "<h1>🎮 $NAME</h1>" >> _site/index.html
+          echo "<p>MAJ : $(date +'%d/%m/%Y %H:%M') UTC</p>" >> _site/index.html
+          echo "<h2>👥 Joueurs : $PLAYING</h2>" >> _site/index.html
+          echo "<h2>👁️ Visites : $VISITS</h2>" >> _site/index.html
+          echo "<h2>⭐ Favoris : $FAVS</h2>" >> _site/index.html
+          echo "</body></html>" >> _site/index.html
       
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
