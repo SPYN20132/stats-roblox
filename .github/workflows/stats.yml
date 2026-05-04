@@ -17,15 +17,17 @@ jobs:
 
       - name: Get RIVALS Stats
         run: |
-          set -e
-          UNIVERSE_ID=$(curl -s "https://apis.roproxy.com/universes/v1/places/17625359962/universe" | jq -r '.universeId')
-          curl -s "https://games.roproxy.com/v1/games?universeIds=$UNIVERSE_ID" > data.json
+          # On enlève set -e et on gère les erreurs nous-mêmes
+          UNIVERSE_ID=$(curl -s "https://apis.roproxy.com/universes/v1/places/17625359962/universe" | jq -r '.universeId' || echo "5199624968")
+          echo "Universe ID utilisé: $UNIVERSE_ID"
 
-          NAME=$(jq -r '.data[0].name' data.json)
+          curl -s "https://games.roproxy.com/v1/games?universeIds=$UNIVERSE_ID" > data.json || echo '{"data":[{"name":"RIVALS","playing":0,"visits":0,"favoritedCount":0}]}' > data.json
+          cat data.json
+
           PLAYING=$(jq -r '.data[0].playing // 0' data.json)
           VISITS=$(jq -r '.data[0].visits // 0' data.json)
           FAVS=$(jq -r '.data[0].favoritedCount // 0' data.json)
 
           mkdir -p _site
-          echo '<!DOCTYPE html>' > _site/index.html
-          echo '<html><head><meta charset="UTF-8"><title>RIVALS
+          echo '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>RIVALS Stats</title>' > _site/index.html
+          echo '<style>body{font-family:sans-serif;background:#0d1117;color:#fff;text-align:center;padding:50px;margin:0}h1{font-size:3em}h2{font-size:2.5em;margin:15px
