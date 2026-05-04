@@ -1,28 +1,35 @@
 name: Update Roblox Stats
 on:
   schedule:
-    - cron: '15,0,45 * * * *' # Toutes les 45min : 00h00, 00h45, 01h30...
+    - cron: '0 * * * *'
   workflow_dispatch:
 
 jobs:
   update:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
-      - uses: actions/checkout@v3
-      
+      - uses: actions/checkout@v4
+
       - name: Get Roblox Stats
         run: |
-          curl -s "https://games.roblox.com/v1/games?universeIds=6035872082" > data.json
-          echo "<html><head><meta charset='UTF-8'><meta http-equiv='refresh' content='300'><title>Stats Roblox</title></head><body style='font-family:sans-serif;background:#0d1117;color:#fff;text-align:center;padding:50px'>" > index.html
-          echo "<h1>🎮 PROJET ÉCHO - STATS LIVE</h1>" >> index.html
-          echo "<p>Dernière MAJ : $(date +'%d/%m/%Y %H:%M')</p>" >> index.html
-          echo "<h2>👥 Joueurs actifs : $(jq '.data[0].playing' data.json)</h2>" >> index.html
-          echo "<h2>👁️ Visites totales : $(jq '.data[0].visits' data.json)</h2>" >> index.html
-          echo "<h2>⭐ Favoris : $(jq '.data[0].favoritedCount' data.json)</h2>" >> index.html
-          echo "</body></html>" >> index.html
+          curl -s "https://games.roblox.com/v1/games?universeIds=17625359962" > data.json
           
+          PLAYING=$(jq -r '.data[0].playing // 0' data.json)
+          VISITS=$(jq -r '.data[0].visits // 0' data.json)
+          FAVS=$(jq -r '.data[0].favoritedCount // 0' data.json)
+          
+          echo "<html><head><meta charset='UTF-8'><meta http-equiv='refresh' content='300'></head><body style='font-family:sans-serif;background:#0d1117;color:#fff;text-align:center;padding:50px'>" > index.html
+          echo "<h1>🎮 RIVALS - STATS LIVE</h1>" >> index.html
+          echo "<p>MAJ : $(date +'%d/%m/%Y %H:%M') UTC</p>" >> index.html
+          echo "<h2>👥 Joueurs : $PLAYING</h2>" >> index.html
+          echo "<h2>👁️ Visites : $VISITS</h2>" >> index.html
+          echo "<h2>⭐ Favoris : $FAVS</h2>" >> index.html
+          echo "</body></html>" >> index.html
+
       - name: Deploy to GitHub Pages
-        uses: peaceiris/actions-gh-pages@v3
+        uses: peaceiris/actions-gh-pages@v4
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
-             publish_dir:./
+          publish_dir:./
