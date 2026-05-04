@@ -18,8 +18,12 @@ jobs:
       - name: Get RIVALS Stats
         run: |
           set -e
-          echo "=== RIVALS Universe ID = 5199624968 ==="
-          curl -s "https://games.roproxy.com/v1/games?universeIds=5199624968" > data.json
+          echo "=== 1. On récupère l'Universe ID de RIVALS via son Place ID ==="
+          UNIVERSE_ID=$(curl -s "https://apis.roproxy.com/universes/v1/places/17625359962/universe" | jq -r '.universeId')
+          echo "Universe ID trouvé: $UNIVERSE_ID"
+          
+          echo "=== 2. On récupère les stats avec cet ID ==="
+          curl -s "https://games.roproxy.com/v1/games?universeIds=$UNIVERSE_ID" > data.json
           cat data.json
           
           NAME=$(jq -r '.data[0].name' data.json)
@@ -37,6 +41,7 @@ jobs:
           echo "<h2>👥 Joueurs : $PLAYING</h2>" >> _site/index.html
           echo "<h2>👁️ Visites : $VISITS</h2>" >> _site/index.html
           echo "<h2>⭐ Favoris : $FAVS</h2>" >> _site/index.html
+          echo "<p>Universe ID: $UNIVERSE_ID</p>" >> _site/index.html
           echo "</body></html>" >> _site/index.html
       
       - uses: actions/configure-pages@v5
