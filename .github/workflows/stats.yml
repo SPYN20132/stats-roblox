@@ -34,16 +34,9 @@ jobs:
           FAVS=$(jq -r '.data[0].favoritedCount // 0' data.json)
           
           mkdir -p./_site
-          cat >./_site/index.html <<'HTML'
-          <html>
-          <head>
-            <meta charset='UTF-8'>
-            <meta http-equiv='refresh' content='300'>
-            <title>RIVALS Stats</title>
-          </head>
-          <body style='font-family:sans-serif;background:#0d1117;color:#fff;text-align:center;padding:50px'>
-            <h1>🎮 RIVALS - STATS LIVE</h1>
-HTML
+          echo "<html><head><meta charset='UTF-8'><meta http-equiv='refresh' content='300'><title>RIVALS Stats</title></head>" >./_site/index.html
+          echo "<body style='font-family:sans-serif;background:#0d1117;color:#fff;text-align:center;padding:50px'>" >>./_site/index.html
+          echo "<h1>🎮 RIVALS - STATS LIVE</h1>" >>./_site/index.html
           echo "<p>MAJ : $(date +'%d/%m/%Y %H:%M') UTC</p>" >>./_site/index.html
           echo "<h2>👥 Joueurs : $PLAYING</h2>" >>./_site/index.html
           echo "<h2>👁️ Visites : $VISITS</h2>" >>./_site/index.html
@@ -63,8 +56,4 @@ HTML
     runs-on: ubuntu-latest
     environment:
       name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    steps:
-      - name: Deploy to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v4
+      url: ${{ steps.deployment
