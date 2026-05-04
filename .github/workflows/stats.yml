@@ -18,8 +18,8 @@ jobs:
       - name: Get RIVALS Stats
         run: |
           set -e
-          echo "=== RIVALS Universe ID = 3623230945 ==="
-          curl -s "https://games.roproxy.com/v1/games?universeIds=3623230945" > data.json
+          echo "=== RIVALS Universe ID = 3296583709 ==="
+          curl -s "https://games.roproxy.com/v1/games?universeIds=3296583709" > data.json
           cat data.json
           
           NAME=$(jq -r '.data[0].name' data.json)
