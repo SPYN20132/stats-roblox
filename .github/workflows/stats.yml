@@ -1,37 +1,56 @@
-name: Update Roblox Stats
+name: Update RIVALS Stats
 on:
   schedule:
     - cron: '0 * * * *'
   workflow_dispatch:
 
-jobs:
-  update:
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-    steps:
-      - uses: actions/checkout@v4
+permissions:
+  contents: read
+  pages: write
+  id-token: write
 
-      - name: Get Roblox Stats
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      
+      - name: Get RIVALS Stats
         run: |
-          curl -s "https://games.roblox.com/v1/games?universeIds=17625359962" > data.json
-          
+          curl -s "https://games.roblox.com/v1/games?universeIds=4927671942" > data.json
           PLAYING=$(jq -r '.data[0].playing // 0' data.json)
           VISITS=$(jq -r '.data[0].visits // 0' data.json)
           FAVS=$(jq -r '.data[0].favoritedCount // 0' data.json)
           
-          echo "<html><head><meta charset='UTF-8'><meta http-equiv='refresh' content='300'></head><body style='font-family:sans-serif;background:#0d1117;color:#fff;text-align:center;padding:50px'>" > index.html
-          echo "<h1>🎮 RIVALS - STATS LIVE</h1>" >> index.html
-          echo "<p>MAJ : $(date +'%d/%m/%Y %H:%M') UTC</p>" >> index.html
-          echo "<h2>👥 Joueurs : $PLAYING</h2>" >> index.html
-          echo "<h2>👁️ Visites : $VISITS</h2>" >> index.html
-          echo "<h2>⭐ Favoris : $FAVS</h2>" >> index.html
-          echo "</body></html>" >> index.html
-
-      - name: Deploy to GitHub Pages
-        uses: peaceiris/actions-gh-pages@v4
+          mkdir -p./_site
+          echo "<html><head><meta charset='UTF-8'><meta http-equiv='refresh' content='300'></head><body style='font-family:sans-serif;background:#0d1117;color:#fff;text-align:center;padding:50px'>" >./_site/index.html
+          echo "<h1>🎮 RIVALS - STATS LIVE</h1>" >>./_site/index.html
+          echo "<p>MAJ : $(date +'%d/%m/%Y %H:%M') UTC</p>" >>./_site/index.html
+          echo "<h2>👥 Joueurs : $PLAYING</h2>" >>./_site/index.html
+          echo "<h2>👁️ Visites : $VISITS</h2>" >>./_site/index.html
+          echo "<h2>⭐ Favoris : $FAVS</h2>" >>./_site/index.html
+          echo "</body></html>" >>./_site/index.html
+      
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+      
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
         with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-             publish_dir:./
-    
-  
+          path: './_site'
+      
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
