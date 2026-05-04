@@ -23,7 +23,7 @@ jobs:
       - name: Get RIVALS Stats
         run: |
           set -e
-          curl -s "https://games.roblox.com/v1/games?universeIds=4927671942" > data.json
+          curl -s "https://games.roblox.com/v1/games?universeIds=3623230945" > data.json
           echo "=== API Response ==="
           cat data.json
           
