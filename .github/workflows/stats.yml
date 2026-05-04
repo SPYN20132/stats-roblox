@@ -1,4 +1,4 @@
-      - name: Get RIVALS Stats
+- name: Get RIVALS Stats
         run: |
           set -e
           UNIVERSE_ID=$(curl -s "https://apis.roproxy.com/universes/v1/places/17625359962/universe" | jq -r '.universeId')
