@@ -1,4 +1,4 @@
-- name: Get Stats + Send WhatsApp
+name: Get Stats + Send WhatsApp
   run: |
     UNIVERSE_ID="5199624968"
     
