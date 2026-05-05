@@ -1,14 +1,24 @@
-      - name: Get RIVALS Stats + Send WhatsApp
+name: RIVALS Stats + WhatsApp
+on:
+  schedule:
+    - cron: '0 * * * *' # UTC. 20:00 FR = '0 18 * * *' été / '0 19 * * *' hiver
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Get Stats + Send WhatsApp
         shell: bash
         run: |
           UNIVERSE_ID="5199624968"
+          
           STATS=$(curl -s "https://games.roproxy.com/v1/games?universeIds=$UNIVERSE_ID")
-          PLAYING=$(echo $STATS | jq -r '.data[0].playing')
-          VISITS=$(echo $STATS | jq -r '.data[0].visits')
-          FAVS=$(echo $STATS | jq -r '.data[0].favoritedCount')
-          
-          MSG="🎮 *RIVALS - Stats Live*\n\n👥 Joueurs : $PLAYING\n👁️ Visites : $VISITS\n⭐ Favoris : $FAVS\n\n_MAJ: $(date +'%H:%M')_"
-          
-          curl -X POST "https://api.green-api.com/waInstance${{ secrets.GREEN_ID }}/sendMessage/${{ secrets.GREEN_TOKEN }}" \
-          -H 'Content-Type: application/json' \
-          -d '{"chatId": "${{ secrets.GREEN_CHAT_ID }}", "message": "'"$MSG"'"}'
+          PLAYING=$(echo $
