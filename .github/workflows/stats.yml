@@ -1,43 +1,30 @@
-name: Statistiques RIVALS + WhatsApp
-on:
-  schedule:
-    - cron: '0 18 * * *' # 20h FR en été, '0 19 * * *' en hiver
-  workflow_dispatch:
-
-permissions:
-  contents: read
-  pages: write
-  id-token: write
-
-jobs:
-  build:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Get Stats + Send WhatsApp
-        run: |
-          UNIVERSE_ID="5199624968"
-          
-          # Récup stats Roblox
-          STATS=$(curl -s "https://games.roproxy.com/v1/games?universeIds=$UNIVERSE_ID")
-          PLAYING=$(echo $STATS | jq -r '.data[0].playing')
-          VISITS=$(echo $STATS | jq -r '.data[0].visits')
-          FAVS=$(echo $STATS | jq -r '.data[0].favoritedCount')
-          
-          echo "Stats récupérées: $PLAYING joueurs"
-          
-          # Format 35421 -> 35,421
-          PLAYING_F=$(printf "%'d" $PLAYING)
-          VISITS_F=$(printf "%'d" $VISITS)
-          FAVS_F=$(printf "%'d" $FAVS)
-          
-          # Message WhatsApp
-          MSG="🎮 *RIVALS - Stats Live*\n\n👥 Joueurs : $PLAYING_F\n👁️ Visites : $VISITS_F\n⭐ Favoris : $FAVS_F\n\n_MAJ auto : $(TZ=Europe/Paris date +'%H:%M')_"
-          
-          curl -X POST "https://api.green-api.com/waInstance${{ secrets.GREEN_ID }}/sendMessage/${{ secrets.GREEN_TOKEN }}" \
-          -H 'Content-Type: application/json' \
-          -d "{\"chatId\": \"${{ secrets.GREEN_CHAT_ID }}\", \"message\": \"$MSG\"}"
+- name: Get Stats + Send WhatsApp
+  run: |
+    UNIVERSE_ID="5199624968"
+    
+    echo "=== Test API Roblox directe ==="
+    STATS=$(curl -s -L -H "Accept: application/json" "https://games.roblox.com/v1/games?universeIds=$UNIVERSE_ID")
+    echo "$STATS"
+    
+    PLAYING=$(echo $STATS | jq -r '.data[0].playing // 0')
+    VISITS=$(echo $STATS | jq -r '.data[0].visits // 0')
+    FAVS=$(echo $STATS | jq -r '.data[0].favoritedCount // 0')
+    
+    echo "Stats: P=$PLAYING V=$VISITS F=$FAVS"
+    
+    PLAYING_F=$(printf "%'d" $PLAYING)
+    VISITS_F=$(printf "%'d" $VISITS)
+    FAVS_F=$(printf "%'d" $FAVS)
+    
+    if [ "$PLAYING" = "0" ] && [ "$VISITS" = "0" ]; then
+      MSG="❌ *RIVALS - Erreur API*\n\nRéponse: $STATS\n\nVérifie l'Universe ID\n_$(TZ=Europe/Paris date +'%H:%M')_"
+    else
+      MSG="🎮 *RIVALS - Stats Live*\n\n👥 Joueurs : $PLAYING_F\n👁️ Visites : $VISITS_F\n⭐ Favoris : $FAVS_F\n\n_MAJ auto : $(TZ=Europe/Paris date +'%H:%M')_"
+    fi
+    
+    curl -X POST "https://api.green-api.com/waInstance${{ secrets.GREEN_ID }}/sendMessage/${{ secrets.GREEN_TOKEN }}" \
+    -H 'Content-Type: application/json' \
+    -d "{\"chatId\": \"${{ secrets.GREEN_CHAT_ID }}\", \"message\": \"$MSG\"}"
           
           # Page GitHub Pages
           mkdir -p _site
