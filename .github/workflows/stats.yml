@@ -1,28 +1,62 @@
-- name: Get Stats + Send WhatsApp
-  shell: bash
-  run: |
-    UNIVERSE_ID="5199624968"
+name: Statistiques RIVALS + WhatsApp
+on:
+  schedule:
+    - cron: '0 18 * * *'
+  workflow_dispatch:
 
-    echo "=== Test API via rprxy ==="
-    STATS=$(curl -s -L "https://rprxy.xyz/v1/games?universeIds=$UNIVERSE_ID")
-    echo "$STATS"
+permissions:
+  contents: read
+  pages: write
+  id-token: write
 
-    PLAYING=$(echo $STATS | jq -r '.data[0].playing // 0')
-    VISITS=$(echo $STATS | jq -r '.data[0].visits // 0')
-    FAVS=$(echo $STATS | jq -r '.data[0].favoritedCount // 0')
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
 
-    echo "Stats: P=$PLAYING V=$VISITS F=$FAVS"
+      - name: Get Stats + Send WhatsApp
+        shell: bash
+        run: |
+          UNIVERSE_ID="5199624968"
 
-    PLAYING_F=$(printf "%'d" $PLAYING)
-    VISITS_F=$(printf "%'d" $VISITS)
-    FAVS_F=$(printf "%'d" $FAVS)
+          STATS=$(curl -s -L "https://rprxy.xyz/v1/games?universeIds=$UNIVERSE_ID")
+          echo "API: $STATS"
 
-    if [ "$PLAYING" = "0" ] && [ "$VISITS" = "0" ]; then
-      MSG="❌ *RIVALS - Erreur API*\n\nProxy HS aussi. Roblox bloque tout.\n\n_$(TZ=Europe/Paris date +'%H:%M')_"
-    else
-      MSG="🎮 *RIVALS - Stats Live*\n\n👥 Joueurs : $PLAYING_F\n👁️ Visites : $VISITS_F\n⭐ Favoris : $FAVS_F\n\n_MAJ auto : $(TZ=Europe/Paris date +'%H:%M')_"
-    fi
+          PLAYING=$(echo $STATS | jq -r '.data[0].playing // 0')
+          VISITS=$(echo $STATS | jq -r '.data[0].visits // 0')
+          FAVS=$(echo $STATS | jq -r '.data[0].favoritedCount // 0')
 
-    curl -X POST "https://api.green-api.com/waInstance${{ secrets.GREEN_ID }}/sendMessage/${{ secrets.GREEN_TOKEN }}" \
-    -H 'Content-Type: application/json' \
-    -d "{\"chatId\": \"${{ secrets.GREEN_CHAT_ID }}\", \"message\": \"$MSG\"}"
+          PLAYING_F=$(printf "%'d" $PLAYING)
+          VISITS_F=$(printf "%'d" $VISITS)
+          FAVS_F=$(printf "%'d" $FAVS)
+
+          MSG="🎮 *RIVALS - Stats Live*\n\n👥 Joueurs : $PLAYING_F\n👁️ Visites : $VISITS_F\n⭐ Favoris : $FAVS_F\n\n_MAJ auto : $(TZ=Europe/Paris date +'%H:%M')_"
+
+          curl -X POST "https://api.green-api.com/waInstance${{ secrets.GREEN_ID }}/sendMessage/${{ secrets.GREEN_TOKEN }}" \
+          -H 'Content-Type: application/json' \
+          -d "{\"chatId\": \"${{ secrets.GREEN_CHAT_ID }}\", \"message\": \"$MSG\"}"
+
+          mkdir -p _site
+          cat > _site/index.html << 'EOF'
+          <!DOCTYPE html><html><head><meta charset="UTF-8"><title>RIVALS Live</title>
+          <style>body{font-family:system-ui;background:#0d1117;color:#fff;text-align:center;padding:50px;margin:0}h1{font-size:3em}h2{font-size:2.5em;margin:15px 0;color:#58a6ff}.stat{background:#161b22;border:1px solid #30363d;border-radius:10px;padding:20px;margin:20px auto;max-width:500px}.update{color:#8b949e}#playing{color:#3fb950}</style></head>
+          <body><h1>🎮 RIVALS</h1>
+          <div class="stat"><h2 id="playing">👥 Joueurs :...</h2></div>
+          <div class="stat"><h2 id="visits">👁️ Visites :...</h2></div>
+          <div class="stat"><h2 id="favs">⭐ Favoris :...</h2></div>
+          <p class="update">MAJ : <span id="time">...</span> | Refresh auto 30s</p>
+          <script>const ID="5199624968";async function go(){try{const r=await fetch(`https://rprxy.xyz/v1/games?universeIds=${ID}`);const s=(await r.json()).data[0];playing.textContent=`👥 Joueurs : ${s.playing.toLocaleString()}`;visits.textContent=`👁️ Visites : ${s.visits.toLocaleString()}`;favs.textContent=`⭐ Favoris : ${s.favoritedCount.toLocaleString()}`;time.textContent=new Date().toLocaleTimeString("fr-FR")}catch(e){}}go();setInterval(go,30000);</script>
+          </body></html>
+          EOF
+
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: '_site'
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/deploy-pages@v4
