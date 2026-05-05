@@ -1,50 +1,82 @@
-- name: Get Stats + Send WhatsApp
-  shell: bash
-  run: |
-    set -x # Affiche chaque commande exécutée
-    UNIVERSE_ID="5199624968"
-    
-    echo "=== 1. Test API Roblox ==="
-    STATS=$(curl -s "https://games.roproxy.com/v1/games?universeIds=$UNIVERSE_ID")
-    echo "$STATS"
-    
-    PLAYING=$(echo $STATS | jq -r '.data[0].playing')
-    VISITS=$(echo $STATS | jq -r '.data[0].visits')
-    FAVS=$(echo $STATS | jq -r '.data[0].favoritedCount')
-    
-    echo "PLAYING=$PLAYING VISITS=$VISITS FAVS=$FAVS"
-    
-    # Check si on a bien des chiffres
-    if! [[ "$PLAYING" =~ ^[0-9]+$ ]]; then
-      echo "ERREUR: PLAYING n'est pas un nombre: $PLAYING"
-      exit 2
-    fi
-    
-    PLAYING_F=$(printf "%'d" $PLAYING)
-    VISITS_F=$(printf "%'d" $VISITS)
-    FAVS_F=$(printf "%'d" $FAVS)
-    
-    echo "=== 2. Test Green API ==="
-    MSG="Test RIVALS: $PLAYING_F joueurs"
-    
-    echo "URL: https://api.green-api.com/waInstance${{ secrets.GREEN_ID }}/sendMessage/..."
-    echo "CHAT_ID: ${{ secrets.GREEN_CHAT_ID }}"
-    
-    RESPONSE=$(curl -s -w "\nHTTP_CODE:%{http_code}" -X POST "https://api.green-api.com/waInstance${{ secrets.GREEN_ID }}/sendMessage/${{ secrets.GREEN_TOKEN }}" \
-    -H 'Content-Type: application/json' \
-    -d "{\"chatId\": \"${{ secrets.GREEN_CHAT_ID }}\", \"message\": \"$MSG\"}")
-    
-    echo "=== 3. Réponse complète Green API ==="
-    echo "$RESPONSE"
-    
-    # Si pas de idMessage, on plante
-    if [[ "$RESPONSE"!= *"idMessage"* ]]; then
-      echo "ERREUR: Green API n'a pas renvoyé idMessage"
-      exit 2
-    fi
-    
-    echo "=== 4. OK Message envoyé ==="
-    
-    mkdir -p _site
-    echo '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>RIVALS Live</title>' > _site/index.html
-    echo '<style>body{font-family:system-ui;background:#0d1117;color:#fff;text-align:center;padding:50px;margin:0}h1{font-size:3em}h2{font-size:2.5em;margin:15
+name: RIVALS Stats + WhatsApp
+on:
+  schedule:
+    - cron: '0 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Get Stats + Send WhatsApp
+        shell: bash
+        run: |
+          set -x
+          UNIVERSE_ID="5199624968"
+          
+          echo "=== 1. Test API Roblox ==="
+          STATS=$(curl -s "https://games.roproxy.com/v1/games?universeIds=$UNIVERSE_ID")
+          echo "$STATS"
+          
+          PLAYING=$(echo $STATS | jq -r '.data[0].playing')
+          VISITS=$(echo $STATS | jq -r '.data[0].visits')
+          FAVS=$(echo $STATS | jq -r '.data[0].favoritedCount')
+          
+          echo "PLAYING=$PLAYING VISITS=$VISITS FAVS=$FAVS"
+          
+          if! [[ "$PLAYING" =~ ^[0-9]+$ ]]; then
+            echo "ERREUR: PLAYING n'est pas un nombre: $PLAYING"
+            exit 2
+          fi
+          
+          PLAYING_F=$(printf "%'d" $PLAYING)
+          VISITS_F=$(printf "%'d" $VISITS)
+          FAVS_F=$(printf "%'d" $FAVS)
+          
+          echo "=== 2. Test Green API ==="
+          MSG="Test RIVALS: $PLAYING_F joueurs"
+          
+          echo "CHAT_ID: ${{ secrets.GREEN_CHAT_ID }}"
+          
+          RESPONSE=$(curl -s -w "\nHTTP_CODE:%{http_code}" -X POST "https://api.green-api.com/waInstance${{ secrets.GREEN_ID }}/sendMessage/${{ secrets.GREEN_TOKEN }}" \
+          -H 'Content-Type: application/json' \
+          -d "{\"chatId\": \"${{ secrets.GREEN_CHAT_ID }}\", \"message\": \"$MSG\"}")
+          
+          echo "=== 3. Réponse complète Green API ==="
+          echo "$RESPONSE"
+          
+          if [[ "$RESPONSE"!= *"idMessage"* ]]; then
+            echo "ERREUR: Green API n'a pas renvoyé idMessage"
+            exit 2
+          fi
+          
+          echo "=== 4. OK Message envoyé ==="
+          
+          mkdir -p _site
+          echo '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>RIVALS Live</title>' > _site/index.html
+          echo '<style>body{font-family:system-ui;background:#0d1117;color:#fff;text-align:center;padding:50px;margin:0}h1{font-size:3em}h2{font-size:2.5em;margin:15px 0;color:#58a6ff}.stat{background:#161b22;border:1px solid #30363d;border-radius:10px;padding:20px;margin:20px auto;max-width:500px}.update{color:#8b949e}#playing{color:#3fb950}</style></head>' >> _site/index.html
+          echo '<body><h1>🎮 RIVALS</h1>' >> _site/index.html
+          echo '<div class="stat"><h2 id="playing">👥 Joueurs :...</h2></div>' >> _site/index.html
+          echo '<div class="stat"><h2 id="visits">👁️ Visites :...</h2></div>' >> _site/index.html
+          echo '<div class="stat"><h2 id="favs">⭐ Favoris :...</h2></div>' >> _site/index.html
+          echo '<p class="update">MAJ : <span id="time">...</span> | Refresh auto 30s</p>' >> _site/index.html
+          echo '<script>const ID="'$UNIVERSE_ID'";async function go(){try{const r=await fetch(`https://games.roproxy.com/v1/games?universeIds=${ID}`);const s=(await r.json()).data[0];playing.textContent=`👥 Joueurs : ${s.playing.toLocaleString()}`;visits.textContent=`👁️ Visites : ${s.visits.toLocaleString()}`;favs.textContent=`⭐ Favoris : ${s.favoritedCount.toLocaleString()}`;time.textContent=new Date().toLocaleTimeString("fr-FR")}catch(e){}}go();setInterval(go,30000);</script>' >> _site/index.html
+          echo '</body></html>' >> _site/index.html
+
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: '_site'
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/deploy-pages@v4
