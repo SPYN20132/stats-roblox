@@ -1,24 +1,50 @@
-name: RIVALS Stats + WhatsApp
-on:
-  schedule:
-    - cron: '0 * * * *' # UTC. 20:00 FR = '0 18 * * *' été / '0 19 * * *' hiver
-  workflow_dispatch:
-
-permissions:
-  contents: read
-  pages: write
-  id-token: write
-
-jobs:
-  build:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Get Stats + Send WhatsApp
-        shell: bash
-        run: |
-          UNIVERSE_ID="5199624968"
-          
-          STATS=$(curl -s "https://games.roproxy.com/v1/games?universeIds=$UNIVERSE_ID")
-          PLAYING=$(echo $
+- name: Get Stats + Send WhatsApp
+  shell: bash
+  run: |
+    set -x # Affiche chaque commande exécutée
+    UNIVERSE_ID="5199624968"
+    
+    echo "=== 1. Test API Roblox ==="
+    STATS=$(curl -s "https://games.roproxy.com/v1/games?universeIds=$UNIVERSE_ID")
+    echo "$STATS"
+    
+    PLAYING=$(echo $STATS | jq -r '.data[0].playing')
+    VISITS=$(echo $STATS | jq -r '.data[0].visits')
+    FAVS=$(echo $STATS | jq -r '.data[0].favoritedCount')
+    
+    echo "PLAYING=$PLAYING VISITS=$VISITS FAVS=$FAVS"
+    
+    # Check si on a bien des chiffres
+    if! [[ "$PLAYING" =~ ^[0-9]+$ ]]; then
+      echo "ERREUR: PLAYING n'est pas un nombre: $PLAYING"
+      exit 2
+    fi
+    
+    PLAYING_F=$(printf "%'d" $PLAYING)
+    VISITS_F=$(printf "%'d" $VISITS)
+    FAVS_F=$(printf "%'d" $FAVS)
+    
+    echo "=== 2. Test Green API ==="
+    MSG="Test RIVALS: $PLAYING_F joueurs"
+    
+    echo "URL: https://api.green-api.com/waInstance${{ secrets.GREEN_ID }}/sendMessage/..."
+    echo "CHAT_ID: ${{ secrets.GREEN_CHAT_ID }}"
+    
+    RESPONSE=$(curl -s -w "\nHTTP_CODE:%{http_code}" -X POST "https://api.green-api.com/waInstance${{ secrets.GREEN_ID }}/sendMessage/${{ secrets.GREEN_TOKEN }}" \
+    -H 'Content-Type: application/json' \
+    -d "{\"chatId\": \"${{ secrets.GREEN_CHAT_ID }}\", \"message\": \"$MSG\"}")
+    
+    echo "=== 3. Réponse complète Green API ==="
+    echo "$RESPONSE"
+    
+    # Si pas de idMessage, on plante
+    if [[ "$RESPONSE"!= *"idMessage"* ]]; then
+      echo "ERREUR: Green API n'a pas renvoyé idMessage"
+      exit 2
+    fi
+    
+    echo "=== 4. OK Message envoyé ==="
+    
+    mkdir -p _site
+    echo '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>RIVALS Live</title>' > _site/index.html
+    echo '<style>body{font-family:system-ui;background:#0d1117;color:#fff;text-align:center;padding:50px;margin:0}h1{font-size:3em}h2{font-size:2.5em;margin:15
