@@ -1,44 +1,22 @@
 name: Statistiques RIVALS + WhatsApp
 on:
-  schedule:
-    - cron: '0 18 * * *' # 20h FR été, mets '0 19 * * *' en hiver
   workflow_dispatch:
-
-permissions:
-  contents: read
-  pages: write
-  id-token: write
 
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-
       - name: Get Stats + Send WhatsApp
         shell: bash
         run: |
           UNIVERSE_ID="5199624968"
-          PLAYING=0
-          VISITS=0
-          FAVS=0
 
-          echo "Test 1: rprxy.xyz"
-          STATS=$(curl -s -L --max-time 10 "https://rprxy.xyz/v1/games?universeIds=$UNIVERSE_ID" || echo "")
-          if echo "$STATS" | jq -e '.data[0]' > /dev/null 2>&1; then
-            echo "rprxy OK"
-          else
-            echo "Test 2: roproxy.com"
-            STATS=$(curl -s -L --max-time 10 "https://games.roproxy.com/v1/games?universeIds=$UNIVERSE_ID" || echo "")
-            if echo "$STATS" | jq -e '.data[0]' > /dev/null 2>&1; then
-              echo "roproxy OK"
-            else
-              echo "Test 3: games.roblox.com"
-              STATS=$(curl -s -L --max-time 10 "https://games.roblox.com/v1/games?universeIds=$UNIVERSE_ID" || echo "")
-            fi
-          fi
+          # allorigins bypass le blocage Roblox
+          URL="https://api.allorigins.win/raw?url=https://games.roblox.com/v1/games?universeIds=$UNIVERSE_ID"
 
-          echo "Réponse finale: $STATS"
+          echo "Test via allorigins..."
+          STATS=$(curl -s -L --max-time 15 "$URL")
+          echo "Réponse: $STATS"
 
           PLAYING=$(echo $STATS | jq -r '.data[0].playing // 0')
           VISITS=$(echo $STATS | jq -r '.data[0].visits // 0')
@@ -49,59 +27,11 @@ jobs:
           FAVS_F=$(printf "%'d" $FAVS)
 
           if [ "$PLAYING" = "0" ]; then
-            MSG="❌ *RIVALS - API HS*\n\nAucun proxy ne répond. Roblox bloque GitHub.\n\n_$(TZ=Europe/Paris date +'%H:%M')_"
+            MSG="❌ *RIVALS - API HS*\n\nMême allorigins est bloqué.\n\n_$(TZ=Europe/Paris date +'%H:%M')_"
           else
             MSG="🎮 *RIVALS - Stats Live*\n\n👥 Joueurs : $PLAYING_F\n👁️ Visites : $VISITS_F\n⭐ Favoris : $FAVS_F\n\n_MAJ auto : $(TZ=Europe/Paris date +'%H:%M')_"
           fi
 
-          echo "Envoi WhatsApp..."
-          CURL_OUT=$(curl -s -w "\nHTTP_CODE:%{http_code}" -X POST "https://api.green-api.com/waInstance${{ secrets.GREEN_ID }}/sendMessage/${{ secrets.GREEN_TOKEN }}" \
+          curl -X POST "https://api.green-api.com/waInstance${{ secrets.GREEN_ID }}/sendMessage/${{ secrets.GREEN_TOKEN }}" \
           -H 'Content-Type: application/json' \
-          -d "{\"chatId\": \"${{ secrets.GREEN_CHAT_ID }}\", \"message\": \"$MSG\"}")
-          echo "$CURL_OUT"
-
-          mkdir -p _site
-          cat > _site/index.html << 'EOF'
-          <!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>RIVALS Live</title>
-          <style>body{font-family:system-ui;background:#0d1117;color:#fff;text-align:center;padding:50px;margin:0}h1{font-size:3em;margin-bottom:30px}h2{font-size:2.5em;margin:15px 0;color:#58a6ff}.stat{background:#161b22;border:1px solid #30363d;border-radius:10px;padding:20px;margin:20px auto;max-width:500px}.update{color:#8b949e;margin-top:40px}#playing{color:#3fb950}</style></head>
-          <body><h1>🎮 RIVALS</h1>
-          <div class="stat"><h2 id="playing">👥 Joueurs :...</h2></div>
-          <div class="stat"><h2 id="visits">👁️ Visites :...</h2></div>
-          <div class="stat"><h2 id="favs">⭐ Favoris :...</h2></div>
-          <p class="update">MAJ : <span id="time">...</span> | Refresh auto 30s</p>
-          <script>
-          const ID="5199624968";
-          const URLS=["https://rprxy.xyz/v1/games?universeIds=","https://games.roproxy.com/v1/games?universeIds=","https://games.roblox.com/v1/games?universeIds="];
-          async function go(){
-            for(let u of URLS){
-              try{
-                const r=await fetch(u+ID);
-                const d=await r.json();
-                if(d.data && d.data[0]){
-                  const s=d.data[0];
-                  playing.textContent=`👥 Joueurs : ${s.playing.toLocaleString()}`;
-                  visits.textContent=`👁️ Visites : ${s.visits.toLocaleString()}`;
-                  favs.textContent=`⭐ Favoris : ${s.favoritedCount.toLocaleString()}`;
-                  time.textContent=new Date().toLocaleTimeString("fr-FR");
-                  break;
-                }
-              }catch(e){}
-            }
-          }
-          go();setInterval(go,30000);
-          </script></body></html>
-          EOF
-
-      - uses: actions/configure-pages@v5
-      - uses: actions/upload-pages-artifact@v3
-        with:
-          path: '_site'
-
-  deploy:
-    needs: build
-    runs-on: ubuntu-latest
-    permissions:
-      pages: write
-      id-token: write
-    steps:
-      - uses: actions/deploy-pages@v4
+          -d "{\"chatId\": \"${{ secrets.GREEN_CHAT_ID }}\", \"message\": \"$MSG\"}"
