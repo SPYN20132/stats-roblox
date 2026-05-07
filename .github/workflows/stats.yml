@@ -15,27 +15,32 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install jq
-        run: sudo apt-get update && sudo apt-get install -y jq
-
       - name: Get Stats + Send WhatsApp
         run: |
           set -e
           WORKER_URL="https://rivals-api.liam-glondu.workers.dev"
 
-          echo "Testing $WORKER_URL"
+          echo "Curl $WORKER_URL"
           STATS=$(curl -sL --max-time 10 --retry 3 "$WORKER_URL")
 
-          echo "Réponse reçue:"
-          echo "$STATS" | jq.
+          echo "JSON brut:"
+          echo "$STATS"
 
-          PLAYING=$(echo "$STATS" | jq -r '.data[0].playing // 0')
-          VISITS=$(echo "$STATS" | jq -r '.data[0].visits // 0')
-          FAVS=$(echo "$STATS" | jq -r '.data[0].favoritedCount // 0')
+          # Extraction sans jq avec grep/sed
+          PLAYING=$(echo "$STATS" | grep -o '"playing":[0-9]*' | grep -o '[0-9]*')
+          VISITS=$(echo "$STATS" | grep -o '"visits":[0-9]*' | grep -o '[0-9]*')
+          FAVS=$(echo "$STATS" | grep -o '"favoritedCount":[0-9]*' | grep -o '[0-9]*')
 
-          PLAYING_F=$(echo "$PLAYING" | sed ':a;s/\B[0-9]\{3\}\>/ &/;ta')
-          VISITS_F=$(echo "$VISITS" | sed ':a;s/\B[0-9]\{3\}\>/ &/;ta')
-          FAVS_F=$(echo "$FAVS" | sed ':a;s/\B[0-9]\{3\}\>/ &/;ta')
+          PLAYING=${PLAYING:-0}
+          VISITS=${VISITS:-0}
+          FAVS=${FAVS:-0}
+
+          echo "Playing: $PLAYING, Visits: $VISITS, Favs: $FAVS"
+
+          # Formatage des nombres avec espaces
+          PLAYING_F=$(printf "%'d" $PLAYING | tr '.' ' ')
+          VISITS_F=$(printf "%'d" $VISITS | tr '.' ' ')
+          FAVS_F=$(printf "%'d" $FAVS | tr '.' ' ')
 
           if [ "$PLAYING" -eq 0 ]; then
             MSG="❌ *RIVALS - API Down*\n\nImpossible de récupérer les stats\n\n_Dernier check: $(TZ=Europe/Paris date +'%H:%M')_"
