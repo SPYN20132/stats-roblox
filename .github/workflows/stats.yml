@@ -1,4 +1,4 @@
-name: Statistiques RIVALS + WhatsApp
+          name: Statistiques RIVALS + WhatsApp
 on:
   schedule:
     - cron: '0 18 * * *' # 20h FR été
@@ -18,46 +18,74 @@ jobs:
       - name: Get Stats + Send WhatsApp
         shell: bash
         run: |
-          set -e
-          WORKER_URL="https://rivals-api.ton-nom.workers.dev"
+          set -euo pipefail
+          WORKER_URL="TON_WORKER_URL" # <<< REMPLACE CA
           UNIVERSE_ID="5199624968"
 
-          echo "=== 1. Fetch depuis Cloudflare Worker ==="
-          STATS=$(curl -s -L --max-time 15 --retry 2 --retry-delay 3 "$WORKER_URL" || echo '{}')
+          echo "=== DEBUG 1: Check Secrets ==="
+          if [ -z "${{ secrets.GREEN_ID }}" ] || [ -z "${{ secrets.GREEN_TOKEN }}" ] || [ -z "${{ secrets.GREEN_CHAT_ID }}" ]; then
+            echo "ERREUR FATALE: Un secret Green API est vide"
+            exit 1
+          fi
+          echo "Secrets OK"
+
+          echo "=== DEBUG 2: Fetch Worker ==="
+          if [ "$WORKER_URL" = "TON_WORKER_URL" ]; then
+            echo "ERREUR FATALE: Tu n'as pas remplacé WORKER_URL"
+            exit 1
+          fi
+
+          STATS=$(curl -s -L --max-time 15 --retry 2 --retry-delay 3 -w "\nHTTP_CODE_WORKER:%{http_code}" "$WORKER_URL" || echo 'HTTP_CODE_WORKER:000')
+          HTTP_WORKER=$(echo "$STATS" | grep "HTTP_CODE_WORKER" | cut -d: -f2)
+          STATS=$(echo "$STATS" | sed '/HTTP_CODE_WORKER/d')
+          echo "HTTP_WORKER: $HTTP_WORKER"
           echo "Réponse brute: $STATS"
 
-          if! echo "$STATS" | jq -e '.data[0]' > /dev/null 2>&1; then
-            echo "=== ERREUR: Worker HS ou JSON invalide ==="
+          if [ "$HTTP_WORKER"!= "200" ]; then
             PLAYING=0; VISITS=0; FAVS=0
+            ERR_MSG="Worker HS - Code $HTTP_WORKER"
+          elif! echo "$STATS" | jq -e. >/dev/null 2>&1; then
+            PLAYING=0; VISITS=0; FAVS=0
+            ERR_MSG="Worker a renvoyé du texte invalide, pas du JSON"
+          elif! echo "$STATS" | jq -e '.data[0]' >/dev/null 2>&1; then
+            PLAYING=0; VISITS=0; FAVS=0
+            ERR_MSG="JSON valide mais pas de.data[0]. Roblox a changé son API"
           else
             PLAYING=$(echo "$STATS" | jq -r '.data[0].playing // 0')
             VISITS=$(echo "$STATS" | jq -r '.data[0].visits // 0')
             FAVS=$(echo "$STATS" | jq -r '.data[0].favoritedCount // 0')
           fi
 
-          LC_NUMERIC=fr_FR.UTF-8
-          PLAYING_F=$(printf "%'d" "$PLAYING")
-          VISITS_F=$(printf "%'d" "$VISITS")
-          FAVS_F=$(printf "%'d" "$FAVS")
+          echo "PLAYING=$PLAYING VISITS=$VISITS FAVS=$FAVS"
+
+          # Format français sans dépendre de la locale
+          PLAYING_F=$(echo "$PLAYING" | sed ':a;s/\B[0-9]\{3\}\>/ &/;ta')
+          VISITS_F=$(echo "$VISITS" | sed ':a;s/\B[0-9]\{3\}\>/ &/;ta')
+          FAVS_F=$(echo "$FAVS" | sed ':a;s/\B[0-9]\{3\}\>/ &/;ta')
 
           if [ "$PLAYING" -eq 0 ]; then
-            MSG="❌ *RIVALS - Erreur API*\n\nImpossible de récupérer les stats.\n\n_$(TZ=Europe/Paris date +'%H:%M')_"
+            MSG="❌ *RIVALS - Erreur API*\n\n${ERR_MSG:-Erreur inconnue}\n\n_Dernier check: $(TZ=Europe/Paris date +'%H:%M')_"
           else
             MSG="🎮 *RIVALS - Stats Live*\n\n👥 Joueurs : $PLAYING_F\n👁️ Visites : $VISITS_F\n⭐ Favoris : $FAVS_F\n\n_MAJ auto : $(TZ=Europe/Paris date +'%H:%M')_"
           fi
 
-          echo "=== 2. Envoi WhatsApp ==="
-          HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" -X POST "https://api.green-api.com/waInstance${{ secrets.GREEN_ID }}/sendMessage/${{ secrets.GREEN_TOKEN }}" \
+          echo "=== DEBUG 3: Envoi WhatsApp ==="
+          WA_RES=$(curl -s -m 20 -w "\nHTTP_CODE_WA:%{http_code}" -X POST "https://api.green-api.com/waInstance${{ secrets.GREEN_ID }}/sendMessage/${{ secrets.GREEN_TOKEN }}" \
           -H 'Content-Type: application/json' \
-          -d "{\"chatId\": \"${{ secrets.GREEN_CHAT_ID }}\", \"message\": \"$MSG\"}")
+          -d "{\"chatId\": \"${{ secrets.GREEN_CHAT_ID }}\", \"message\": \"$MSG\"}" || echo 'HTTP_CODE_WA:000')
 
-          echo "HTTP_CODE WhatsApp: $HTTP_CODE"
-          if [ "$HTTP_CODE"!= "200" ]; then
-            echo "=== ERREUR WHATSAPP: Code $HTTP_CODE ==="
+          HTTP_WA=$(echo "$WA_RES" | grep "HTTP_CODE_WA" | cut -d: -f2)
+          WA_BODY=$(echo "$WA_RES" | sed '/HTTP_CODE_WA/d')
+          echo "HTTP_WA: $HTTP_WA"
+          echo "WA_BODY: $WA_BODY"
+
+          if [ "$HTTP_WA"!= "200" ]; then
+            echo "ERREUR WHATSAPP: Code $HTTP_WA. Corps: $WA_BODY"
             exit 1
           fi
+          echo "WhatsApp OK"
 
-          echo "=== 3. Build page HTML ==="
+          echo "=== DEBUG 4: Build HTML ==="
           mkdir -p _site
           cat > _site/index.html << 'EOF'
           <!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>RIVALS Live</title>
@@ -68,20 +96,22 @@ jobs:
           <div class="stat"><h2 id="favs">⭐ Favoris :...</h2></div>
           <p class="update">MAJ : <span id="time">...</span> | Refresh auto 30s</p>
           <script>
-          const WORKER="https://rivals-api.ton-nom.workers.dev";
+          const WORKER="TON_WORKER_URL";
           async function go(){
             try{
               const r=await fetch(WORKER);
+              if(!r.ok) throw new Error("HTTP "+r.status);
               const s=(await r.json()).data[0];
-              playing.textContent=`👥 Joueurs : ${s.playing.toLocaleString()}`;
-              visits.textContent=`👁️ Visites : ${s.visits.toLocaleString()}`;
-              favs.textContent=`⭐ Favoris : ${s.favoritedCount.toLocaleString()}`;
+              playing.textContent=`👥 Joueurs : ${s.playing.toLocaleString('fr-FR')}`;
+              visits.textContent=`👁️ Visites : ${s.visits.toLocaleString('fr-FR')}`;
+              favs.textContent=`⭐ Favoris : ${s.favoritedCount.toLocaleString('fr-FR')}`;
               time.textContent=new Date().toLocaleTimeString("fr-FR");
-            }catch(e){console.error(e)}
+            }catch(e){console.error("Erreur fetch:",e)}
           }
           go();setInterval(go,30000);
           </script></body></html>
           EOF
+          sed -i "s|TON_WORKER_URL|$WORKER_URL|g" _site/index.html
 
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
