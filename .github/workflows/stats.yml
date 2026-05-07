@@ -17,7 +17,15 @@ jobs:
 
       - name: Get Stats + Send WhatsApp
         run: |
-          STATS=$(curl -sL "https://m-glondu.workers.dev")
+          set -e
+          WORKER_URL="https://rivals-api.liam-glondu.workers.dev"
+
+          echo "Testing $WORKER_URL"
+          STATS=$(curl -sL --max-time 10 --retry 3 "$WORKER_URL")
+
+          echo "Réponse reçue:"
+          echo "$STATS" | jq.
+
           PLAYING=$(echo "$STATS" | jq -r '.data[0].playing // 0')
           VISITS=$(echo "$STATS" | jq -r '.data[0].visits // 0')
           FAVS=$(echo "$STATS" | jq -r '.data[0].favoritedCount // 0')
@@ -47,7 +55,7 @@ jobs:
           <p class="update">MAJ : <span id="time">...</span> | Refresh auto 30s</p>
           <script>
           async function go(){
-            const r=await fetch("https://m-glondu.workers.dev");
+            const r=await fetch("https://rivals-api.liam-glondu.workers.dev");
             const s=(await r.json()).data[0];
             playing.textContent=`👥 Joueurs : ${s.playing.toLocaleString('fr-FR')}`;
             visits.textContent=`👁️ Visites : ${s.visits.toLocaleString('fr-FR')}`;
