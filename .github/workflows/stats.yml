@@ -1,7 +1,7 @@
 name: Statistiques RIVALS + WhatsApp
 on:
   schedule:
-    - cron: '0 * * * *' # Toutes les heures
+    - cron: '0 * * * *'
   workflow_dispatch:
 
 permissions:
@@ -14,102 +14,41 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
       - name: Get Stats + Send WhatsApp
         run: |
           set -e
-          UNIVERSE_ID="6035872082" # RIVALS - change ici pour ton jeu
+          UNIVERSE_ID="6035872082"
           WORKER_URL="https://rivals-api.liam-glondu.workers.dev/?id=$UNIVERSE_ID"
-
-          STATS=$(curl -sL --max-time 10 --retry 3 "$WORKER_URL")
-          echo "$STATS"
-
+          STATS=$(curl -sL "$WORKER_URL")
           PLAYING=$(echo "$STATS" | grep -o '"playing":[0-9]*' | grep -o '[0-9]*')
           VISITS=$(echo "$STATS" | grep -o '"visits":[0-9]*' | grep -o '[0-9]*')
           FAVS=$(echo "$STATS" | grep -o '"favoritedCount":[0-9]*' | grep -o '[0-9]*')
           NAME=$(echo "$STATS" | grep -o '"name":"[^"]*"' | sed 's/"name":"//;s/"//')
           PLACE_ID=$(echo "$STATS" | grep -o '"rootPlaceId":[0-9]*' | grep -o '[0-9]*')
-
           PLAYING=${PLAYING:-0}
           VISITS=${VISITS:-0}
           FAVS=${FAVS:-0}
           NAME=${NAME:-Jeu}
-
           PLAYING_F=$(printf "%'d" $PLAYING | tr '.' ' ')
           VISITS_F=$(printf "%'d" $VISITS | tr '.' ' ')
           FAVS_F=$(printf "%'d" $FAVS | tr '.' ' ')
-
           if [ "$PLAYING" -eq 0 ]; then
             MSG="❌ *$NAME - API Down*\n\nImpossible de récupérer les stats\n\nhttps://www.roblox.com/games/$PLACE_ID\n\n_Dernier check: $(TZ=Europe/Paris date +'%H:%M')_"
           else
             MSG="🎮 *$NAME - Stats Live*\n\n👥 Joueurs : $PLAYING_F\n👁️ Visites : $VISITS_F\n⭐ Favoris : $FAVS_F\n\nhttps://www.roblox.com/games/$PLACE_ID\n\n_MAJ auto : $(TZ=Europe/Paris date +'%H:%M')_"
           fi
-
-          curl -s -X POST "https://api.green-api.com/waInstance${{ secrets.GREEN_ID }}/sendMessage/${{ secrets.GREEN_TOKEN }}" \
-          -H 'Content-Type: application/json' \
-          -d "{\"chatId\": \"${{ secrets.GREEN_CHAT_ID }}\", \"message\": \"$MSG\"}"
-
+          curl -s -X POST "https://api.green-api.com/waInstance${{ secrets.GREEN_ID }}/sendMessage/${{ secrets.GREEN_TOKEN }}" -H 'Content-Type: application/json' -d "{\"chatId\": \"${{ secrets.GREEN_CHAT_ID }}\", \"message\": \"$MSG\"}"
           mkdir -p _site
           cat > _site/index.html << 'EOF'
           <!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Stats Roblox</title>
-          <style>
-          body{font-family:system-ui;background:#0d1117;color:#fff;text-align:center;padding:20px;margin:0}
-          h1{font-size:2.5em;margin:10px 0}
-          input{background:#161b22;border:1px solid #30363d;color:#fff;padding:12px;border-radius:8px;font-size:1.1em;width:200px;text-align:center}
-          button{background:#238636;border:0;color:#fff;padding:12px 20px;border-radius:8px;font-size:1.1em;cursor:pointer;margin-left:10px}
-          button:hover{background:#2ea043}
-        .stat{background:#161b22;border:1px solid #30363d;border-radius:10px;padding:20px;margin:20px auto;max-width:500px}
-          h2{font-size:2em;margin:10px 0;color:#58a6ff}
-          #playing{color:#3fb950}
-        .update{color:#8b949e;font-size:0.9em}
-          a{color:#58a6ff;text-decoration:none}
-          a:hover{text-decoration:underline}
-          </style></head>
-          <body>
-          <h1>🎮 Stats Roblox Live</h1>
-          <div>
-            <input id="gameId" placeholder="Universe ID" value="6035872082">
-            <button onclick="saveId()">Changer</button>
-          </div>
-          <h3 id="gameName"><a href="#" target="_blank">RIVALS</a></h3>
-          <div class="stat"><h2 id="playing">👥 Joueurs :...</h2></div>
-          <div class="stat"><h2 id="visits">👁️ Visites :...</h2></div>
-          <div class="stat"><h2 id="favs">⭐ Favoris :...</h2></div>
-          <p class="update">MAJ : <span id="time">...</span> | Refresh auto 30s</p>
-          <script>
-          const WORKER = "https://rivals-api.liam-glondu.workers.dev";
-          let currentId = localStorage.getItem('universeId') || '6035872082';
-          gameId.value = currentId;
-
-          async function go(){
-            try {
-              const r = await fetch(`${WORKER}/?id=${currentId}`);
-              const s = (await r.json()).data[0];
-              playing.textContent = `👥 Joueurs : ${s.playing.toLocaleString('fr-FR')}`;
-              visits.textContent = `👁️ Visites : ${s.visits.toLocaleString('fr-FR')}`;
-              favs.textContent = `⭐ Favoris : ${s.favoritedCount.toLocaleString('fr-FR')}`;
-              gameName.innerHTML = `<a href="https://www.roblox.com/games/${s.rootPlaceId}" target="_blank">${s.name}</a>`;
-              time.textContent = new Date().toLocaleTimeString("fr-FR");
-            } catch(e) {
-              gameName.textContent = "Erreur API";
-            }
-          }
-
-          function saveId(){
-            currentId = gameId.value.trim();
-            localStorage.setItem('universeId', currentId);
-            go();
-          }
-
-          go();setInterval(go,30000);
-          </script></body></html>
+          <style>body{font-family:system-ui;background:#0d1117;color:#fff;text-align:center;padding:20px;margin:0}h1{font-size:2.5em;margin:10px 0}input{background:#161b22;border:1px solid #30363d;color:#fff;padding:12px;border-radius:8px;font-size:1.1em;width:200px;text-align:center}button{background:#238636;border:0;color:#fff;padding:12px 20px;border-radius:8px;font-size:1.1em;cursor:pointer;margin-left:10px}button:hover{background:#2ea043}.stat{background:#161b22;border:1px solid #30363d;border-radius:10px;padding:20px;margin:20px auto;max-width:500px}h2{font-size:2em;margin:10px 0;color:#58a6ff}#playing{color:#3fb950}.update{color:#8b949e;font-size:0.9em}a{color:#58a6ff;text-decoration:none}a:hover{text-decoration:underline}</style></head>
+          <body><h1>🎮 Stats Roblox Live</h1><div><input id="gameId" placeholder="Universe ID" value="6035872082"><button onclick="saveId()">Changer</button></div><h3 id="gameName"><a href="#" target="_blank">RIVALS</a></h3><div class="stat"><h2 id="playing">👥 Joueurs :...</h2></div><div class="stat"><h2 id="visits">👁️ Visites :...</h2></div><div class="stat"><h2 id="favs">⭐ Favoris :...</h2></div><p class="update">MAJ : <span id="time">...</span> | Refresh auto 30s</p>
+          <script>const WORKER="https://rivals-api.liam-glondu.workers.dev";let currentId=localStorage.getItem('universeId')||'6035872082';gameId.value=currentId;async function go(){try{const r=await fetch(`${WORKER}/?id=${currentId}`);const s=(await r.json()).data[0];playing.textContent=`👥 Joueurs : ${s.playing.toLocaleString('fr-FR')}`;visits.textContent=`👁️ Visites : ${s.visits.toLocaleString('fr-FR')}`;favs.textContent=`⭐ Favoris : ${s.favoritedCount.toLocaleString('fr-FR')}`;gameName.innerHTML=`<a href="https://www.roblox.com/games/${s.rootPlaceId}" target="_blank">${s.name}</a>`;time.textContent=new Date().toLocaleTimeString("fr-FR")}catch(e){gameName.textContent="Erreur API"}}function saveId(){currentId=gameId.value.trim();localStorage.setItem('universeId',currentId);go()}go();setInterval(go,30000);</script></body></html>
           EOF
-
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
           path: '_site'
-
   deploy:
     needs: build
     runs-on: ubuntu-latest
