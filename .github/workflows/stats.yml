@@ -14,6 +14,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
       - name: Get Stats + Send WhatsApp
         run: |
           set -e
@@ -57,10 +58,10 @@ jobs:
           input{background:#161b22;border:1px solid #30363d;color:#fff;padding:12px;border-radius:8px;font-size:1.1em;width:200px;text-align:center}
           button{background:#238636;border:0;color:#fff;padding:12px 20px;border-radius:8px;font-size:1.1em;cursor:pointer;margin-left:10px}
           button:hover{background:#2ea043}
-         .stat{background:#161b22;border:1px solid #30363d;border-radius:10px;padding:20px;margin:20px auto;max-width:500px}
+        .stat{background:#161b22;border:1px solid #30363d;border-radius:10px;padding:20px;margin:20px auto;max-width:500px}
           h2{font-size:2em;margin:10px 0;color:#58a6ff}
           #playing{color:#3fb950}
-         .update{color:#8b949e;font-size:0.9em}
+        .update{color:#8b949e;font-size:0.9em}
           a{color:#58a6ff;text-decoration:none}
           a:hover{text-decoration:underline}
           </style></head>
