@@ -1,7 +1,7 @@
 name: Statistiques RIVALS + WhatsApp
 on:
   schedule:
-    - cron: '0 18 * * *' # 20h FR
+    - cron: '0 * * * *'  # Toutes les heures
   workflow_dispatch:
 
 permissions:
@@ -22,11 +22,9 @@ jobs:
 
           echo "Curl $WORKER_URL"
           STATS=$(curl -sL --max-time 10 --retry 3 "$WORKER_URL")
-
           echo "JSON brut:"
           echo "$STATS"
 
-          # Extraction sans jq avec grep/sed
           PLAYING=$(echo "$STATS" | grep -o '"playing":[0-9]*' | grep -o '[0-9]*')
           VISITS=$(echo "$STATS" | grep -o '"visits":[0-9]*' | grep -o '[0-9]*')
           FAVS=$(echo "$STATS" | grep -o '"favoritedCount":[0-9]*' | grep -o '[0-9]*')
@@ -35,9 +33,6 @@ jobs:
           VISITS=${VISITS:-0}
           FAVS=${FAVS:-0}
 
-          echo "Playing: $PLAYING, Visits: $VISITS, Favs: $FAVS"
-
-          # Formatage des nombres avec espaces
           PLAYING_F=$(printf "%'d" $PLAYING | tr '.' ' ')
           VISITS_F=$(printf "%'d" $VISITS | tr '.' ' ')
           FAVS_F=$(printf "%'d" $FAVS | tr '.' ' ')
@@ -48,9 +43,13 @@ jobs:
             MSG="🎮 *RIVALS - Stats Live*\n\n👥 Joueurs : $PLAYING_F\n👁️ Visites : $VISITS_F\n⭐ Favoris : $FAVS_F\n\n_MAJ auto : $(TZ=Europe/Paris date +'%H:%M')_"
           fi
 
-          curl -s -X POST "https://api.green-api.com/waInstance${{ secrets.GREEN_ID }}/sendMessage/${{ secrets.GREEN_TOKEN }}" \
+          echo "Envoi WhatsApp..."
+          RESP=$(curl -s -w "\nHTTP_CODE:%{http_code}" -X POST "https://api.green-api.com/waInstance${{ secrets.GREEN_ID }}/sendMessage/${{ secrets.GREEN_TOKEN }}" \
           -H 'Content-Type: application/json' \
-          -d "{\"chatId\": \"${{ secrets.GREEN_CHAT_ID }}\", \"message\": \"$MSG\"}"
+          -d "{\"chatId\": \"${{ secrets.GREEN_CHAT_ID }}\", \"message\": \"$MSG\"}")
+          
+          echo "Réponse Green API:"
+          echo "$RESP"
 
           mkdir -p _site
           cat > _site/index.html << 'EOF'
